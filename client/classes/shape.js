@@ -1,6 +1,30 @@
 import Cell from "./cell.js";
 import { shapeBank, options, directions } from "../config.js";
 
+/**
+ * @param {number} xPos
+ * @param {number} yPos
+ * @param {Cell[][]} content
+ * @param {Cell[][]} map
+ * @returns {boolean}
+ */
+const verifyCollision = (xPos, yPos, content, map) => {
+    let isCollision = false;
+
+    content.forEach((row, y) => {
+        row.forEach((cell, x) => {
+            const cellPos = { x: xPos + x, y: yPos + y };
+
+            let b = (cellPos.x < 0 || cellPos.x >= options.MAP_WIDTH) ||
+                cellPos.y >= options.MAP_HEIGHT;
+
+            if (b) isCollision = true;
+        });
+    });
+
+    return isCollision;
+}
+
 class Shape {
     /**
      * @param {Cell[][]} content
@@ -50,6 +74,23 @@ class Shape {
     }
 
     /**
+     * @param {Cell[][]} map
+     * @returns {boolean}
+     */
+    isCollide(map) {
+        let res = false;
+
+        this.content.forEach((row, y) => {
+            row.forEach((cell, x) => {
+                const pos = { x: this.x + x, y: this.y + y };
+                if (map[pos.y][pos.x]) res = true;
+            });
+        });
+
+        return res;
+    }
+
+    /**
      * @param {KeyboardEvent} event
      * @param {Cell[][]} map
      */
@@ -81,28 +122,31 @@ class Shape {
         else if (event.type === 'keyup') this.canMove = true;
     }
 
-    /** @param {KeyboardEvent} event */
-    rotate(event) {
+    /**
+     * @param {KeyboardEvent} event
+     * @param {Cell[][]} map
+     * */
+    rotate(event, map) {
         if (event.type === 'keydown' && this.canRotate) {
+            const { x, y, content } = this;
             let direction = '';
 
             if (event.key === 'z') direction = directions.left;
             if (event.key === 'x') direction = directions.right;
 
             if (direction !== '') {
-                const newContent = new Array(this.content[0].length);
-                for (let i = 0; i < newContent.length; i++) newContent[i] = new Array(this.content.length);
+                /** @type {Cell[][]} */
+                const newContent = new Array(content[0].length);
+                for (let i = 0; i < newContent.length; i++) newContent[i] = new Array(content.length);
 
-                this.content.forEach((row, y) => {
+                content.forEach((row, y) => {
                     row.forEach((cell, x) => {
-                        if (direction === directions.right)
-                            newContent[x][this.content.length - 1 - y] = cell;
-                        else if (direction === directions.left)
-                            newContent[row.length - 1 - x][y] = cell;
+                        if (direction === directions.right) newContent[x][content.length - 1 - y] = cell;
+                        else if (direction === directions.left) newContent[row.length - 1 - x][y] = cell;
                     });
                 });
 
-                this.content = newContent;
+                if (!verifyCollision(x, y, newContent, map)) this.content = newContent;
             }
         }
         else if (event.type === 'keyup') this.canRotate = true;
