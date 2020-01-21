@@ -63,8 +63,10 @@ class Game {
         /** @type {Shape} */
         this.actualShape = null;
         this.nextShape = new Shape();
+        this.score = 0;
 
         this.map = generateMap();
+        this.gameInterval = NaN;
     }
 
     initialize() {
@@ -77,16 +79,20 @@ class Game {
         this.shapeCanvas.height = SHAPE_CANVAS_DIMENSION * PIXEL_DIMENSION;
 
         document.addEventListener('keydown', e => {
-            if (this.actualShape) this.actualShape.move(e, this.map);
+            if (this.actualShape) {
+                this.actualShape.move(e, this.map);
+                this.actualShape.rotate(e, this.map)
+            }
         });
+
         document.addEventListener('keyup', e => {
-            if (this.actualShape) this.actualShape.move(e, this.map);
+            if (this.actualShape) {
+                this.actualShape.move(e, this.map);
+                this.actualShape.rotate(e, this.map)
+            }
         });
 
-        document.addEventListener('keydown', e => this.actualShape.rotate(e));
-        document.addEventListener('keyup', e => this.actualShape.rotate(e));
-
-        setInterval(() => {
+        this.gameInterval = setInterval(() => {
             this.update();
             this.render();
         }, options.GAME_INTERVAL);
@@ -123,6 +129,9 @@ class Game {
                 });
             });
         }
+
+        //PAINTING SCORE
+        document.querySelector('span#score').textContent = '' + this.score;
     }
 
     migrateCells() {
@@ -137,16 +146,62 @@ class Game {
         this.actualShape = null;
     }
 
+    /**
+     * @param {number[]} rowIndexes
+     */
+    destroyRows(rowIndexes) {
+        const len = rowIndexes.length;
+        this.score += len;
+
+        for (let i = len - 1; i >= 0; i--) {
+            this.map.splice(rowIndexes[i], 1);
+        }
+
+        for (let y = 0; y < len; y++) {
+            const row = [];
+            for (let x = 0; x < options.MAP_WIDTH; x++) row.push(null);
+
+            this.map.splice(0, 0, row);
+        }
+    }
+
+    verifyCollision() {
+        /** @type {number[]} */
+        const rowsToDestroy = [];
+
+        this.map.forEach((row, rowIndex) => {
+            let destroyRow = true;
+
+            row.forEach(cell => {
+                if (!cell) destroyRow = false;
+            });
+
+            if (destroyRow) rowsToDestroy.push(rowIndex);
+        });
+
+        this.destroyRows(rowsToDestroy);
+    }
+
+    gameOver() {
+        clearInterval(this.gameInterval);
+
+        alert('Game over, final score: ' + this.score);
+        window.location.href = window.location.href;
+    }
+
     update() {
         if (!this.actualShape) {
             this.actualShape = new Shape(this.nextShape.content);
             this.actualShape.setFallPosition();
             this.nextShape.generate();
+
+            if (this.actualShape.isCollide(this.map)) this.gameOver();
         }
         else {
             this.actualShape.fall(this.map, isFallen => {
                 if (isFallen) {
                     this.migrateCells();
+                    this.verifyCollision();
                 }
             });
         }
